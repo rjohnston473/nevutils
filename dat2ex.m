@@ -165,7 +165,7 @@ for i = 1:length(trials)
         end
     end
     % put all the params into the trials struct
-    trials(i).params.block = catstruct(trials(i).params.block, params);    
+    trials(i).params.block = catstruct(params,trials(i).params.block);    
     
     lastEnd = tri.time(2);
 end
