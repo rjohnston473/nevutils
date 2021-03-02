@@ -49,6 +49,8 @@ p.addOptional('readInterTrialData',false,@islogical);
 p.addOptional('mode',false,@(x) islogical(x)||strcmp(x,'low')||strcmp(x,'high'));
 p.addOptional('readNS2',false,@islogical);
 p.addOptional('readNS5',false,@islogical);
+p.addOptional('adjustNevTime',[],@isnumeric);
+p.addOptional('readWaves',false,@islogical);
 p.addOptional('convertEyes',false,@islogical);
 p.addOptional('nsEpoch',[0 0],@isnumeric);
 p.addOptional('dsEye',30,@isnumeric);
@@ -59,11 +61,12 @@ readInterTrialData = p.Results.readInterTrialData;
 mode = p.Results.mode;
 readNS2 = p.Results.readNS2;
 readNS5 = p.Results.readNS5;
+readWaves = p.Results.readWaves;
 convertEyes = p.Results.convertEyes;
 nsEpoch = p.Results.nsEpoch;
 dsEye = p.Results.dsEye;
 dsDiode = p.Results.dsDiode;
-
+adjustNevTime = p.Results.adjustNevTime;
 % addpath helpers
 % optional args
 nevreadflag = 0;
@@ -94,7 +97,22 @@ else
         filename = [filename,'.nev'];
     end
     if exist(filename,'file') == 2
-        nev = readNEV(filename);
+    	if ~readWaves
+    		try
+        		nev = readNEV(filename);
+        	catch
+				nev = read_nev(filename);
+        	end	
+        else
+        	try
+				[nev,wav] = readNEV(filename);
+			catch
+				[nev,wav] = read_nev(filename);
+			end
+        end
+        if ~isempty(adjustNevTime)
+			nev(:,3) = nev(:,3)+adjustNevTime;
+        end
         nev_info = NEV_displayheader(filename);
     else
         fprintf("File does not exist!\n");
@@ -156,6 +174,9 @@ if ~isempty(tempdata.text)
         dat(n).channels = channels;
         dat(n).time = [trialstarts(n) trialends(n)];
         thisnev = nev(trialstartinds(n):trialendinds(n),:);
+		if readWaves
+			thiswav = wav(:,trialstartinds(n):trialendinds(n));
+		end
         trialdig = thisnev(thisnev(:,1)==0,:);
         tempspikes = thisnev(thisnev(:,1)~=0,:);
         tempspikes(:,3) = tempspikes(:,3)*30000;
@@ -171,6 +192,7 @@ if ~isempty(tempdata.text)
         %dat(n).spiketimesdiff = diff(tempspikes(:,3));
         dat(n).spikeinfo = uint16(tempspikes(:,1:2));
         %dat(n).spikeinfo = tempspikes;
+        dat(n).waves = thiswav(:,thisnev(:,1)~=0);
         dat(n).result = dat(n).event(dat(n).event(:,2)==161 | dat(n).event(:,2)==162,2);
         if isempty(dat(n).result)
             dat(n).result = dat(n).event(dat(n).event(:,2)>=150 & dat(n).event(:,2)<=158,2);
